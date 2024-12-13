@@ -41,21 +41,34 @@ def get_car_name(car_data, car_code):
     return car_name
 
 # Get car skins
-def get_car_skins(cars_directory, temp_skins_dir, car_code):
+def get_car_skins(cars_directory, temp_dir, car_code):
     skins = []
+    temp_skins_dir = os.path.join(temp_dir, "cars", car_code, "skins")
     skins_path = os.path.join(cars_directory, car_code, "skins")
+    if not os.path.exists(temp_skins_dir):
+        os.makedirs(temp_skins_dir)
     for skin in Path(skins_path).iterdir():
-        skins_temp_dir = os.path.join(temp_skins_dir, car_code)
         livery = os.path.join(skin.absolute(), "livery.png")
-        skin_temp_path = os.path.join(temp_skins_dir, car_code, skin.name + ".png")
+        skin_temp_path = os.path.join(temp_skins_dir, skin.name + ".png")
         # Create temp skins dir
-        if not os.path.exists(skins_temp_dir):
-            os.makedirs(skins_temp_dir)
+        if not os.path.exists(temp_skins_dir):
+            os.makedirs(temp_skins_dir)
         # Check if livery file exists
         if os.path.exists(livery):
             shutil.copy(livery, skin_temp_path)
         skins.append(skin.name)
     return skins
+
+# Copy data.acd
+def copy_data_acd(cars_directory, temp_dir, car_code):
+    data_acd = os.path.join(cars_directory, car_code, "data.acd")
+    data_acd_temp_path = os.path.join(temp_dir, "cars", car_code, "data.acd")
+    # Check if data.acd file exists
+    if os.path.exists(data_acd):
+        shutil.copy(data_acd, data_acd_temp_path)
+        return True
+    else:
+        return False
 
 def main():
     # Argument parser
@@ -74,8 +87,9 @@ def main():
     cars_directory = Path(content + "/cars")
     cars_counter = 0
     cars = {}
+    cars_without_data = []
     temp_dir = "temp"
-    temp_skins_dir = os.path.join(temp_dir, "skins")
+    
 
     # Delete temp dirs
     if os.path.exists(temp_dir):
@@ -83,8 +97,6 @@ def main():
     # Create temp dirs
     if not os.path.exists(temp_dir):
         os.makedirs(temp_dir)
-    if not os.path.exists(temp_skins_dir):
-        os.makedirs(temp_skins_dir)
 
     # Iterate over all directories in content/cars
     for car in Path(cars_directory).iterdir():
@@ -100,7 +112,10 @@ def main():
             print(car_name, car_code)
             continue
         
-        skins = get_car_skins(cars_directory, temp_skins_dir, car_code)
+        skins = get_car_skins(cars_directory, temp_dir, car_code)
+
+        if copy_data_acd(cars_directory, temp_dir, car_code) == False:
+            cars_without_data.append(car_code)
 
         cars[car_code] = {"name": car_name, "skins": skins}
         cars_counter += 1
@@ -109,6 +124,10 @@ def main():
     with open("temp/cars.json", "w") as f:
         json.dump(cars, f, indent=4)
 
+    # Zip car data
+    shutil.make_archive("cars", 'zip', temp_dir)
+
+    print("cars without data.acd", cars_without_data)
     print("exported", cars_counter, "cars")
 
 
