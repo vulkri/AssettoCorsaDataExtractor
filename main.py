@@ -32,12 +32,30 @@ def get_car_name(car_data, car_code):
                     return("error: traffic car")
             else:
                 return("error: car name not found")
+    # Ui file not found
     except FileNotFoundError:
         return("error: ui file not found")
     # Cleanup car name
     car_name = re.sub(r"[^A-Za-z0-9\[\]\(\)\{\}\{.\}\- ]", "", car_name)
     car_name = car_name.strip()
     return car_name
+
+# Get car skins
+def get_car_skins(cars_directory, temp_skins_dir, car_code):
+    skins = []
+    skins_path = os.path.join(cars_directory, car_code, "skins")
+    for skin in Path(skins_path).iterdir():
+        skins_temp_dir = os.path.join(temp_skins_dir, car_code)
+        livery = os.path.join(skin.absolute(), "livery.png")
+        skin_temp_path = os.path.join(temp_skins_dir, car_code, skin.name + ".png")
+        # Create temp skins dir
+        if not os.path.exists(skins_temp_dir):
+            os.makedirs(skins_temp_dir)
+        # Check if livery file exists
+        if os.path.exists(livery):
+            shutil.copy(livery, skin_temp_path)
+        skins.append(skin.name)
+    return skins
 
 def main():
     # Argument parser
@@ -55,7 +73,7 @@ def main():
     content = ac_root + "/content"
     cars_directory = Path(content + "/cars")
     cars_counter = 0
-    cars = []
+    cars = {}
     temp_dir = "temp"
     temp_skins_dir = os.path.join(temp_dir, "skins")
 
@@ -75,29 +93,23 @@ def main():
         if "traffic" in car_code.lower():
             continue
         car_data = os.path.join(cars_directory, car_code, "ui\\ui_car.json")
+
         car_name = get_car_name(car_data, car_code)
+
         if "error" in car_name:
             print(car_name, car_code)
             continue
-        cars_counter += 1
-        # Get car skins
-        skins = []
-        skins_path = os.path.join(cars_directory, car_code, "skins")
-        for skin in Path(skins_path).iterdir():
-            skins_temp_dir = os.path.join(temp_skins_dir, car_code)
-            livery = os.path.join(skin.absolute(), "livery.png")
-            skin_temp_path = os.path.join(temp_skins_dir, car_code, skin.name + ".png")
-            if not os.path.exists(skins_temp_dir):
-                os.makedirs(skins_temp_dir)
-            if os.path.exists(livery):
-                shutil.copy(livery, skin_temp_path)
-            skins.append(skin.name)
-
-        cars.append({"code": car_code, "name": car_name, "skins": skins})
         
-    #for car in cars:
-    #    print(car["code"], car["name"], "| skins: ", len(car["skins"]))
-    print(cars_counter)
+        skins = get_car_skins(cars_directory, temp_skins_dir, car_code)
+
+        cars[car_code] = {"name": car_name, "skins": skins}
+        cars_counter += 1
+
+    # Save car data
+    with open("temp/cars.json", "w") as f:
+        json.dump(cars, f, indent=4)
+
+    print("exported", cars_counter, "cars")
 
 
 
